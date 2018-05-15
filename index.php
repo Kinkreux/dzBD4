@@ -4,53 +4,50 @@ require_once __DIR__ . '/functions.php';
 //создаем подключение к базе данных
 $dataBase = new PDO('mysql:dbname=mpustovit;host=localhost;charset=UTF8', 'mpustovit', 'neto1714');
 
-//дамп создания базы; она уже 1 раз создана, так что закомментирована
-/*try {
-    $test = $dataBaseTasks->exec(
-        "DROP TABLE IF EXISTS `tasks`;
-                          CREATE TABLE `tasks` (
-                          `id` int(11) NOT NULL AUTO_INCREMENT,
-                          `description` text NOT NULL,
-                          `is_done` tinyint(4) NOT NULL DEFAULT '0',
-                          `date_added` datetime NOT NULL,
-                          PRIMARY KEY(`id`)
-                          ) ENGINE = InnoDB DEFAULT CHARSET = utf8;");
-} catch (PDOException $e) {
-    die("Error: " . $e->getMessage());
-}*/
+createTable($dataBase);
 
-//выбираем таблицу
-if (isset($_GET)) {
-    if (array_key_exists('table', $_GET)) {
-        $tableFields = getFields($dataBase);
-    }
-}
+var_dump($_GET);
 
-var_dump($tableFields);
+var_dump($_POST);
 
-//удаляем поле
-if (array_key_exists('action', $_GET) or array_key_exists('id', $_GET)) {
-    $actionArray = newTaskAction();
-    $id = $actionArray['id'];
-    $action = $actionArray['action'];
-    if ($action = 'doTask') {
-        doTask($id, $dataBase);
-//        header('Location: index.php');
-    } elseif ($action = 'deleteTask') {
-        deleteTask($id, $dataBase);
-//        header('Location: index.php');
-    } else echo 'Действие не определено.';
-}
+//var_dump($tableFields);
+
+////удаляем поле
+//if (array_key_exists('action', $_GET) or array_key_exists('id', $_GET)) {
+//    $actionArray = newTaskAction();
+//    $id = $actionArray['id'];
+//    $action = $actionArray['action'];
+//    if ($action = 'doTask') {
+//        doTask($id, $dataBase);
+////        header('Location: index.php');
+//    } elseif ($action = 'deleteTask') {
+//        deleteTask($id, $dataBase);
+////        header('Location: index.php');
+//    } else echo 'Действие не определено.';
+//}
 
 //обновляем тип или название поля
 if (array_key_exists('delete_field', $_GET)) {
-
+    deleteField($dataBase);
 }
 
 //читаем список таблиц
 $tableList = $dataBase->query("SHOW TABLES");
 $tableList = $tableList->fetchAll();
 $tableList = array_column($tableList, 'Tables_in_mpustovit');
+
+echo '<pre>';
+print_r($tableList);
+echo '</pre>';
+
+//выбираем таблицу
+if (isset($_GET)) {
+    if (array_key_exists('table', $_GET)) {
+        $table = chooseTable();
+        $tableFields = getFields($table, $dataBase);
+//        $tableFields = array_merge($tableFields;);
+    }
+}
 ?>
 
 <html>
@@ -62,19 +59,27 @@ $tableList = array_column($tableList, 'Tables_in_mpustovit');
         }
 
         body {
-            max-width: 700px;
+            max-width: 850px;
             margin-left: 15%;
         }
 
         td {
             padding: 10px;
         }
+
+
+        .warning {
+            color: darkred;
+        }
+
+        .inline-block {
+            display: inline-block;
+        }
     </style>
 </header>
 <body>
 <h1>Управление таблицами и базами данных</h1>
 <h2>База данных mpustovit</h2>
-<p>Таблицы</p>
 <ul>
     <?php
     //читаем и выводим задачи построчно
@@ -83,8 +88,12 @@ $tableList = array_column($tableList, 'Tables_in_mpustovit');
             echo '<a href="?table=' . $table . '">' . $table . '</a>' ?></li>
     <?php endforeach; ?>
 </ul>
+<a href="?create_table">Создать таблицу</a>
+<p class="warning">ПОЖАЛУЙСТА, ДЛЯ ОБЕСПЕЧЕНИЯ ПРОВЕРКИ ПРЕДЫДУЩИХ ДОМАШНИХ ЗАДАНИЙ НЕ ТРОГАЙТЕ ПОЛЯ ТАБЛИЦ <code>tasks</code> И <code>users</code>. СПАСИБО!</p>
+<p class="warning">Для проверки этого дз есть таблица <b><code>test</code></b>.</p>
 <?php
 if (isset($tableFields)) { ?>
+<p>Таблицы</p>
 <table>
     <thead>
     <th>Название поля</th>
@@ -97,6 +106,9 @@ if (isset($tableFields)) { ?>
     //читаем и выводим задачи построчно
     foreach ($tableFields as $field) : ?>
         <tr>
+<!--            --><?php ////название
+//            $table = $field['table'];
+//            echo $name ?>
             <td><?php //название
                 $name = $field['Field'];
                 echo $name ?>
@@ -104,24 +116,18 @@ if (isset($tableFields)) { ?>
             <td><?php //тип поля
                 echo $field['Type'] ?></td>
             <td>
-                <form method="post" name="new_field_name<?php echo $name ?>">
-                    <input type="text" name="new_field_name_text">
-                    <input type="submit" value="Редактировать название">
-                </form>
-            </td>
-            <td>
                 <form method="post" name="">
-                    <input type="text" name="new_field_name_text">
-                    <select>
-                        <option value="new_field_type</option>
-                        <?php foreach($userList as $userTask) {
-                            echo '<option value="new_field_type'.$name.'">'.$name.'</option>';
-                        } ?>
+                    <p class="inline-block">Редактировать название</p>
+                    <input type="text" name="table_<?php echo $table ?>_new_field_name_<?php echo $name ?>">
+                    <p class="inline-block">Редактировать тип</p>
+                    <select class="inline-block">
+                           <option value="table_<?php echo $table ?>_new_field_type_name_<?php echo $name ?>&new_field_type_varchar&new_field_type_varchar">varchar(255)</option>
+                            <option value="table_<?php echo $table ?>_new_field_type_name_<?php echo $name ?>&new_field_type_varchar&new_field_type_int">int</option>
                     </select>
-                    <input type="submit" value="Редактировать тип">
+                    <input type="submit" value="Сохранить">
                 </form>
             <td><?php //удалить поле
-                echo '<a href="?name=' . $name . '&action=delete_field">' . 'Удалить</a>' ?></td>
+                echo '<a href="?table='.$table.'&name=' . $name . '&action=delete_field">' . 'Удалить</a>'; var_dump($table); ?></td>
         </tr>
     <?php endforeach; } ?>
     </tbody>
